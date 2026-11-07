@@ -34,9 +34,13 @@ async function startBot() {
 
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
     const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-    if (body.trim() !== ".gcstatus" && body.trim() !== ".gcstatus ") return;
+    if (body.toLowerCase().trim() === ".ping") {
+      await sock.sendMessage(msg.key.remoteJid, { text: "Pong! ✅ GC STATUS BOT is alive" });
+      return;
+    }
+    if (!body.toLowerCase().includes(".gcstatus")) return;
     await gcStatus(sock, msg, config);
   });
   isStarting = false;
