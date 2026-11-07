@@ -1,0 +1,18 @@
+{
+  "name": "gcstatus-bot",
+  "version": "1.0.0",
+  "description": "GC STATUS Bot - Pairing Code, Auto Post, Group Status",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "express": "^4.19.2",
+    "pino": "^8.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
