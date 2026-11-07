@@ -24,20 +24,23 @@ async function gcStatus(sock, msg, config) {
   let content = {};
   let mediaBuffer = null;
 
+  // FIX ONLY: Use quoted message key, not .gcstatus message key
+  const quotedKey = { remoteJid: from, id: ctx.stanzaId, participant: ctx.participant, fromMe: ctx.participant ? false : true };
+
   if (quoted.imageMessage) {
-    mediaBuffer = await sock.downloadMediaMessage({ key: msg.key, message: quoted });
+    mediaBuffer = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
     content = { image: mediaBuffer, caption: quoted.imageMessage.caption || "" };
   } else if (quoted.videoMessage) {
-    mediaBuffer = await sock.downloadMediaMessage({ key: msg.key, message: quoted });
+    mediaBuffer = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
     content = { video: mediaBuffer, caption: quoted.videoMessage.caption || "" };
-  } else if (quoted.audioMessage || quoted.voiceMessage) {
-    mediaBuffer = await sock.downloadMediaMessage({ key: msg.key, message: quoted });
+  } else if (quoted.audioMessage) {
+    mediaBuffer = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
     content = { audio: mediaBuffer, mimetype: "audio/mp4", ptt: true };
   } else if (quoted.stickerMessage) {
-    mediaBuffer = await sock.downloadMediaMessage({ key: msg.key, message: quoted });
+    mediaBuffer = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
     content = { sticker: mediaBuffer };
   } else if (quoted.documentMessage) {
-    mediaBuffer = await sock.downloadMediaMessage({ key: msg.key, message: quoted });
+    mediaBuffer = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
     content = { document: mediaBuffer, fileName: quoted.documentMessage.fileName || "file", mimetype: quoted.documentMessage.mimetype };
   } else if (quoted.conversation) {
     content = { text: quoted.conversation };
