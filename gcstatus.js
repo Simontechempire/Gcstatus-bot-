@@ -1,70 +1,56 @@
 async function gcStatus(sock, msg, config) {
   const from = msg.key.remoteJid;
   if (from.endsWith("@g.us")) {
-    return sock.sendMessage(from, { text: "❌ Use this for DM only.\nReply to a message for DM with .gcstatus" });
+    return sock.sendMessage(from, { text: "❌ Use for DM only" });
   }
 
-  const body = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
   const ctx = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo || msg.message?.audioMessage?.contextInfo;
   const quoted = ctx?.quotedMessage;
-
-  if (!quoted && !body.replace(/\.gcstatus/gi, "").trim()) {
-    return sock.sendMessage(from, { text: "❌ Reply to any text / image / video / voice note / link with .gcstatus" });
+  if (!quoted) {
+    return sock.sendMessage(from, { text: "❌ Reply to text / image / video with .gcstatus" });
   }
 
-  await sock.sendMessage(from, { text: "⏳ Preparing your Group Status content...\nI no go post am, I go give you am ready to post yourself." });
+  const allGroups = await sock.groupFetchAllParticipating();
+  const groupJids = Object.keys(allGroups);
+  await sock.sendMessage(from, { text: `⏳ Posting to GROUP STATUS for ${groupJids.length} groups...\nNo be normal status, no be group chat.` });
 
-  let content = null;
-  let type = "text";
-  const quotedKey = quoted ? { remoteJid: from, id: ctx.stanzaId, participant: ctx.participant, fromMe: false } : null;
+  let groupStatusContent = null;
+  const quotedKey = { remoteJid: from, id: ctx.stanzaId, participant: ctx.participant, fromMe: false };
 
-  try {
-    if (quoted?.imageMessage) {
-      const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
-      content = { image: buf, caption: quoted.imageMessage.caption || "" };
-      type = "image";
-    } else if (quoted?.videoMessage) {
-      const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
-      content = { video: buf, caption: quoted.videoMessage.caption || "" };
-      type = "video";
-    } else if (quoted?.audioMessage) {
-      const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
-      content = { audio: buf, mimetype: "audio/mp4", ptt: true };
-      type = "audio";
-    } else if (quoted?.stickerMessage) {
-      const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
-      content = { sticker: buf };
-      type = "sticker";
-    } else if (quoted?.groupInviteMessage) {
-      const g = quoted.groupInviteMessage;
-      const link = g.inviteCode ? `https://chat.whatsapp.com/${g.inviteCode}` : "";
-      content = { text: `${g.groupName || "Group"}\n${g.caption || ""}\n\n${link}`.trim() };
-      type = "group-link";
-    } else if (quoted?.conversation) {
-      content = { text: quoted.conversation };
-      type = "text";
-    } else if (quoted?.extendedTextMessage) {
-      content = { text: quoted.extendedTextMessage.text };
-      type = "text";
-    } else if (body.replace(/\.gcstatus/gi, "").trim()) {
-      content = { text: body.replace(/\.gcstatus/gi, "").trim() };
-      type = "text";
-    } else {
-      return sock.sendMessage(from, { text: "❌ This type I no fit prepare. Send am as plain text / image / video." });
+  if (quoted.imageMessage) {
+    const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
+    groupStatusContent = { image: buf, caption: quoted.imageMessage.caption || "" };
+  } else if (quoted.videoMessage) {
+    const buf = await sock.downloadMediaMessage({ key: quotedKey, message: quoted });
+    groupStatusContent = { video: buf, caption: quoted.videoMessage.caption || "" };
+  } else if (quoted.conversation) {
+    groupStatusContent = { text: quoted.conversation };
+  } else if (quoted.extendedTextMessage) {
+    groupStatusContent = { text: quoted.extendedTextMessage.text };
+  } else if (quoted.groupInviteMessage) {
+    const g = quoted.groupInviteMessage;
+    const link = g.inviteCode ? `https://chat.whatsapp.com/${g.inviteCode}` : "";
+    groupStatusContent = { text: `${g.groupName || ""}\n${g.caption || ""}\n\n${link}`.trim() };
+  } else {
+    return sock.sendMessage(from, { text: "❌ This type no fit Group Status" });
+  }
+
+  let success = 0, failed = 0;
+  for (const gid of groupJids) {
+    try {
+      // REAL GROUP STATUS - NOT status@broadcast, NOT group chat
+      await sock.sendMessage(gid, {
+        groupStatusMessage: groupStatusContent
+      });
+      success++;
+      console.log(`✅ Group Status posted to ${allGroups[gid]?.subject || gid}`);
+      await new Promise(r => setTimeout(r, 1500)); // small delay make WhatsApp no block
+    } catch (e) {
+      failed++;
+      console.log(`❌ Failed ${gid}:`, e.message);
     }
-
-    // 1. Send the clean content back to you - READY TO POST
-    await sock.sendMessage(from, content);
-
-    // 2. Send the instruction
-    const instruction = `✅ READY FOR GROUP STATUS\n\nType: ${type.toUpperCase()}\n\nHOW TO POST AM NOW:\n1. Long-press the ${type} above > Save / Download am\n2. Open the group you want - e.g. Fun friends\n3. Tap group name for top\n4. Tap STATUS button (the one you circle)\n5. Post am there\n6. Repeat for next group\n\nNote: Group Status na per-group. You must post am 1 by 1 for each group. Bot no fit press that button yet because WhatsApp never give Baileys access to am.\n\nYou want me to list your groups make you tick which ones you don post to?`;
-
-    await sock.sendMessage(from, { text: instruction });
-    console.log("✅ Group Status helper prepared:", type);
-
-  } catch (e) {
-    console.log("❌ Helper failed:", e.message);
-    await sock.sendMessage(from, { text: `❌ Failed to prepare:\n${e.message}` });
   }
+
+  await sock.sendMessage(from, { text: `Done ✅\nGroup Status posted: ${success}\nFailed: ${failed}\n\nGo check any group > Tap group name > Tap STATUS - e go dey there, only that group members go see am.` });
 }
 module.exports = gcStatus;
