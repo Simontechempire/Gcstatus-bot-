@@ -10,7 +10,7 @@ async function gcStatus(sock, msg, config) {
   const ctx = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo || msg.message?.audioMessage?.contextInfo;
   const quoted = ctx?.quotedMessage;
   if (!quoted) {
-    return sock.sendMessage(from, { text: "❌ Reply to any text / image / video / voice note / link with .gcstatus" });
+    return sock.sendMessage(from, { text: "❌ Reply to any text / image / video / voice note / link" });
   }
 
   // Get ALL groups I'm a member of
@@ -50,20 +50,9 @@ async function gcStatus(sock, msg, config) {
     return sock.sendMessage(from, { text: "❌ This type no fit post" });
   }
 
-  // Post to Group Status for each group - NOT group DM
-  // We use status@broadcast - na Group Status, no be group chat
-  for (let i = 0; i < total; i++) {
-    const group = allGroups[groupIds[i]];
-    // Add group name as caption for text/image/video so e know which group
-    let finalContent = { ...content };
-    if (finalContent.caption !== undefined && group.subject) {
-      finalContent.caption = finalContent.caption ? finalContent.caption : "";
-    }
-
-    await sock.sendMessage("status@broadcast", finalContent);
-    // Delay to avoid ban
-    await new Promise(r => setTimeout(r, config.STATUS_DELAY));
-  }
+  // FIX SPAM: Post to status@broadcast ONLY 1 TIME, not 1 time per group
+  // status@broadcast is already your own status, looping am na duplicate
+  await sock.sendMessage("status@broadcast", content);
 
   await sock.sendMessage(from, { text: "Order Complete ✅" });
 }
