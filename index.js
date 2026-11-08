@@ -14,7 +14,6 @@ let isStarting = false;
 async function startBot() {
   if (sock) return sock;
   if (isStarting) {
-    // Wait for the first startBot to finish, no start second one
     while (isStarting) await new Promise(r => setTimeout(r, 500));
     return sock;
   }
@@ -36,11 +35,16 @@ async function startBot() {
     const msg = messages[0];
     if (!msg.message) return;
     const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-    if (body.toLowerCase().trim() === ".ping") {
+    const text = body.toLowerCase().trim();
+
+    // FIX SPAM LOOP: Ignore bot's own replies
+    if (body.startsWith("❌") || body.startsWith("⏳") || body.startsWith("Pong") || body.startsWith("Order Complete") || body.startsWith("✅")) return;
+
+    if (text === ".ping") {
       await sock.sendMessage(msg.key.remoteJid, { text: "Pong! ✅ GC STATUS BOT is alive" });
       return;
     }
-    if (!body.toLowerCase().includes(".gcstatus")) return;
+    if (!text.includes(".gcstatus")) return;
     await gcStatus(sock, msg, config);
   });
   isStarting = false;
@@ -50,7 +54,6 @@ async function startBot() {
 app.post("/pair", async (req, res) => {
   try {
     if (!sock) await startBot();
-    // FIX DELAY ONLY: wait 2 sec make socket ready before asking for code
     await new Promise(r => setTimeout(r, 2000));
     const number = req.body.number.replace(/[^0-9]/g, "");
     const code = await sock.requestPairingCode(number);
