@@ -10,11 +10,11 @@ async function gcStatus(sock, msg, config) {
     return sock.sendMessage(from, { text: "❌ Reply to any text / image / video / voice note / link" });
   }
 
+  // We still count groups, but we NO go loop am - status na 1 post only
   const allGroups = await sock.groupFetchAllParticipating();
-  const groupIds = Object.keys(allGroups);
-  const total = groupIds.length;
+  const total = Object.keys(allGroups).length;
 
-  await sock.sendMessage(from, { text: `⏳\nPosting to ${total} groups for real...\nWait be patient...` });
+  await sock.sendMessage(from, { text: `⏳\nPosting to STATUS...\nYou dey for ${total} groups, but status na 1 post` });
 
   let content = {};
   const quotedKey = { remoteJid: from, id: ctx.stanzaId, participant: ctx.participant, fromMe: ctx.participant ? false : true };
@@ -42,18 +42,10 @@ async function gcStatus(sock, msg, config) {
     return sock.sendMessage(from, { text: "❌ This type no fit post" });
   }
 
-  // REAL POST: Send to EACH group JID, not status@broadcast
-  let success = 0;
-  for (const gid of groupIds) {
-    try {
-      await sock.sendMessage(gid, content);
-      success++;
-      await new Promise(r => setTimeout(r, config.STATUS_DELAY || 2000));
-    } catch (e) {
-      console.log("Failed for group " + gid + " : " + e.message);
-    }
-  }
+  // REAL STATUS POST - 1 TIME ONLY
+  await sock.sendMessage("status@broadcast", content);
+  console.log("✅ Posted to status@broadcast");
 
-  await sock.sendMessage(from, { text: `Order Complete ✅\nPosted to ${success}/${total} groups` });
+  await sock.sendMessage(from, { text: "Order Complete ✅\nCheck your STATUS tab now" });
 }
 module.exports = gcStatus;
